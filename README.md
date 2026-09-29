@@ -1,43 +1,58 @@
-# Configurable DSP Slice Architecture (Verilog)
+# Spartan-6 DSP48A1 Slice Implementation & Verification
 
-A robust, highly parameterizable digital signal processing (**DSP**) hardware architecture implemented in **Verilog HDL**, inspired by standard FPGA DSP slices (such as the Xilinx DSP48A1)[cite: 14]. This design supports advanced arithmetic operations, dynamic multiplexing, and configurable pipeline registers.
-
----
-
-## 🏗️ Architectural Overview & Modules
-
-The project is structured into the following modular hardware components:
-
-1. **Configurable Register Unit (`DSP_unit`)**:
-   * A reusable primitive used to instantiate synchronous or asynchronous registers of customizable data widths[cite: 16].
-   * Supports both synchronous (`SYN`) and asynchronous (`ASYN`) reset types alongside dedicated clock enable (`CEX`) control signals[cite: 16].
-
-2. **Main DSP Core (`DSP`)**:
-   * **Pre-Adder/Subtractor**: Handles preliminary arithmetic on inputs `B` and `D` based on operational configuration[cite: 14].
-   * **Multiplier**: Performs dedicated $18 \times 18$ bit multiplication yielding a $36$-bit product output (`M`)[cite: 14].
-   * **Multiplexers (`mux_x` & `mux_z`)**: Dynamic data routing multiplexers controlled directly by the `OPMODE` instruction bits[cite: 14].
-   * **Post-Adder/Subtractor**: Computes the final $48$-bit result supporting addition, subtraction, carry propagation, and accumulator functions[cite: 14].
-
-3. **Testbench Verification Environment (`DSP_tb`)**:
-   * A comprehensive testbench designed to drive randomized and targeted stimuli, test reset behaviors, and monitor input/output transitions through real-time console logging[cite: 15].
+> A comprehensive Verilog design, self-checking testbench, and Vivado synthesis/implementation flow for the Xilinx Spartan-6 **DSP48A1** digital signal processing slice[cite: 4], featuring configurable pipeline registers and dynamic operational modes.
 
 ---
 
-## ⚙️ Configurable Parameters
-
-The architecture can be fully customized at instantiation using the following parameters:
-* **Pipeline Registers**: `A0REG`, `A1REG`, `B0REG`, `B1REG`, `CREG`, `DREG`, `MREG`, `PREG`, `CARRYINREG`, `CARRYOUTREG`, `OPMODEREG`[cite: 14]
-* **Reset Style**: `RSTTYPE` (supports `"SYN"` or `"ASYN"` modes)[cite: 14]
-* **Routing Selectors**: `B_IN` and `CARRYINSEL`[cite: 14]
+## 📋 Project Overview
+The **DSP48A1** slice is a foundational building block in FPGA families like Spartan-6, tailored for math-intensive applications and high-performance digital signal processing (DSP)[cite: 4]. This project includes:
+1. **Flexible Register Unit (`DSP_unit`):** Supports configurable data widths, synchronous/asynchronous resets (`SYN`/`ASYNC`), and clock enables (`CE`).
+2. **Main DSP Module (`DSP`):** Integrates a Pre-Adder/Subtracter, Multiplier, Post-Adder/Subtracter, and `OPMODE`-controlled X and Z multiplexers.
+3. **Verification Environment (`DSP_tb.v`):** A self-checking testbench covering reset operations and four distinct data paths (Paths 1 to 4).
 
 ---
 
-## 🚀 Getting Started & Simulation
+## ⚙️ Architecture & Default Parameters
+The design operates with the following default attributes and parameters:
+* **Pipeline Registers:**
+  * `A0REG = 0`, `A1REG = 1`
+  * `B0REG = 0`, `B1REG = 1`
+  * `CREG = 1`, `DREG = 1`
+  * `MREG = 1`, `PREG = 1`
+  * `CARRYINREG = 1`, `CARRYOUTREG = 1`
+  * `OPMODEREG = 1`
+* **Configuration Attributes:**
+  * `RSTTYPE = "SYNC"` (Synchronous reset)[cite: 4]
+  * `B_IN = "DIRECT"` (Direct B-port or cascaded `BCIN`)[cite: 4]
+  * `CARRYINSEL = "OPMODE5"` (Carry-in source selection)[cite: 4]
 
-1. **Prerequisites**:
-   * An industry-standard Verilog simulator (e.g., **ModelSim**, **Vivado**, or **Icarus Verilog**).
+---
 
-2. **Simulation Workflow**:
-   * Add `DSP_unit.v`, `DSP.v`, and `DSP_tb.v` to your simulation project compilation list[cite: 14, 15, 16].
-   * Set `DSP_tb` as the top-level testbench module[cite: 15].
-   * Run the simulation to observe waveform transitions and verify real-time console monitoring outputs.
+## 📂 File Structure
+* `DSP.v`: The core top-level module containing the DSP48A1 architecture and `DSP_unit`.
+* `DSP_tb.v`: Self-checking testbench validating reset functionality and test paths 1 through 4.
+* `DSP_spesifications.pdf`: Official datasheet and hardware specification for the DSP48A1 slice[cite: 4].
+* `DSP_TB_Description.pdf`: Detailed stimulus descriptions and flow diagrams for test paths[cite: 5].
+
+---
+
+## 📊 Testbench Verification Paths
+The testbench automatically validates the design through the following scenarios:
+1. **Reset Operation:** Asserts all active-high resets and verifies that all outputs (`P`, `M`, `BCOUT`, `CARRYOUT`) drop to zero[cite: 5].
+2. **Path 1:** Tests pre-subtraction, multiplier, and post-subtraction using `OPMODE = 8'b11011101`[cite: 5].
+3. **Path 2:** Tests pre-addition with zero-routing via Mux X and Mux Z using `OPMODE = 8'b00010000`[cite: 5].
+4. **Path 3:** Tests accumulator/P-feedback routing using `OPMODE = 8'b00001010`[cite: 5].
+5. **Path 4:** Tests post-subtraction with concatenated `D:A:B` and `PCIN` inputs using `OPMODE = 8'b10100111`[cite: 5].
+
+---
+
+## 🛠️ Simulation & Implementation Flow
+
+### 1. Simulation (QuestaSim)
+* Compile `DSP.v` and `DSP_tb.v` in QuestaSim.
+* Run the simulation and check the transcript window for automatic `SUCCESS` confirmation messages for each path.
+
+### 2. Synthesis & Implementation (Xilinx Vivado)
+* Create a new Vivado project and select a target part capable of supporting the large I/O footprint:
+  ```text
+  xc7a200tffg1156-3
